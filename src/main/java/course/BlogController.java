@@ -16,17 +16,18 @@
 
 package course;
 
-import com.mongodb.DB;
-import com.mongodb.DBObject;
-import com.mongodb.MongoClient;
-import com.mongodb.MongoClientURI;
+import com.mongodb.*;
 import com.mongodb.client.MongoDatabase;
+import course.model.Comment;
+import course.model.Post;
 import freemarker.template.Configuration;
 import freemarker.template.SimpleHash;
 import freemarker.template.Template;
 import freemarker.template.TemplateException;
 import org.apache.commons.lang3.StringEscapeUtils;
 import org.bson.Document;
+import org.mongodb.morphia.Datastore;
+import org.mongodb.morphia.Morphia;
 import spark.Request;
 import spark.Response;
 import spark.Route;
@@ -68,7 +69,11 @@ public class BlogController {
         final MongoClient mongoClient = new MongoClient(new MongoClientURI(mongoURIString));
         final MongoDatabase blogDatabase = mongoClient.getDatabase("blog");
 
-        blogPostDAO = new BlogPostDAO(blogDatabase);
+        final Morphia morphia = new Morphia();
+        morphia.map(Post.class).map(Comment.class);
+        final Datastore ds = morphia.createDatastore(mongoClient, "blog");
+
+        blogPostDAO = new BlogPostDAO(blogDatabase, ds);
         userDAO = new UserDAO(blogDatabase);
         sessionDAO = new SessionDAO(blogDatabase);
 
@@ -114,7 +119,8 @@ public class BlogController {
             public void doHandle(Request request, Response response, Writer writer) throws IOException, TemplateException {
                 String username = sessionDAO.findUserNameBySessionId(getSessionCookie(request));
 
-                List<Document> posts = blogPostDAO.findByDateDescending(10);
+                //List<Document> posts = blogPostDAO.findByDateDescending(10);
+                List<Post> posts = blogPostDAO.findByDateDescending(10);
                 SimpleHash root = new SimpleHash();
 
                 root.put("myposts", posts);

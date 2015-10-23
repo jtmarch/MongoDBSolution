@@ -1,8 +1,14 @@
 package course;
 
+import com.mongodb.DBCollection;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
+import course.model.Comment;
+import course.model.Post;
 import org.bson.Document;
+import org.mongodb.morphia.Datastore;
+import org.mongodb.morphia.query.Query;
+import org.mongodb.morphia.query.UpdateOperations;
 
 import java.util.ArrayList;
 import java.util.Date;
@@ -11,8 +17,11 @@ import java.util.List;
 public class BlogPostDAO {
     MongoCollection<Document> postsCollection;
 
-    public BlogPostDAO(final MongoDatabase blogDatabase) {
+    Datastore ds;
+
+    public BlogPostDAO(final MongoDatabase blogDatabase, final Datastore datastore) {
         postsCollection = blogDatabase.getCollection("posts");
+        ds = datastore;
     }
 
     // Return a single post corresponding to a permalink
@@ -27,13 +36,15 @@ public class BlogPostDAO {
 
     // Return a list of posts in descending order. Limit determines
     // how many posts are returned.
-    public List<Document> findByDateDescending(int limit) {
+    public List<Post> findByDateDescending(int limit) {
 
         // XXX HW 3.2,  Work Here
         // Return a list of DBObjects, each one a post from the posts collection
         List<Document> posts = postsCollection.find().limit(limit).sort(new Document("date", -1)).into(new ArrayList<Document>());
 
-        return posts;
+        Query<Post> postCollection = ds.createQuery(Post.class).limit(limit).order("-date");
+
+        return postCollection.asList();
     }
 
 
@@ -65,7 +76,19 @@ public class BlogPostDAO {
                 .append("permalink", permalink)
                 .append("comments", new ArrayList<String>())
                 .append("date", new Date());
-        postsCollection.insertOne(post);
+        //postsCollection.insertOne(post);
+
+
+        Post postObj = new Post();
+        postObj.setTitle(title);
+        postObj.setDate(new Date());
+        postObj.setAuthor(username);
+        postObj.setBodyContent(body);
+        postObj.setPermalink(permalink);
+        postObj.setComments(new ArrayList<Comment>());
+        postObj.setTags(tags);
+        ds.save(postObj);
+
         return permalink;
     }
 
@@ -97,6 +120,16 @@ public class BlogPostDAO {
 
         Document update = new Document("$push", new Document("comments", comment));
 
-        postsCollection.updateOne(new Document("permalink", permalink), update);
+        //postsCollection.updateOne(new Document("permalink", permalink), update);
+
+        Comment commentObj = new Comment();
+        commentObj.setAuthor(name);
+        commentObj.setEmail(email);
+        commentObj.setBody(body);
+
+        Query<Post> updateQuery = ds.createQuery(Post.class).field("permalink").equal(permalink);
+        UpdateOperations<Post> ops = ds.createUpdateOperations(Post.class).add("comments", commentObj);
+        ds.update(updateQuery, ops);
+
     }
 }

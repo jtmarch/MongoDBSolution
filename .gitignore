@@ -1,0 +1,8 @@
+*.zip
+.classpath
+.project
+.settings/
+target/
+*.log
+.idea
+*.iml
